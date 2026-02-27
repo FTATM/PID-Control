@@ -8,7 +8,7 @@ include_once("../includes/fn/pg_connect.php");
 // ✅ ใช้ตัวแปรเดียวกันกับที่เชื่อมต่อ
 $db = pg_connect("$host $port $dbname $credentials");
 if (!$db) {
-    echo json_encode(["status" => "error", "message" => "can not connect to database"]);
+    echo json_encode(["success" => false, "message" => "can not connect to database"]);
     exit;
 }
 // ========================================================================================
@@ -26,7 +26,7 @@ if (!$db) {
 // echo $branch_id;
 
 if (empty($branch_id)) {
-    echo json_encode(["status" => "error", "message" => "please input branch id"]);
+    echo json_encode(["success" => false, "message" => "please input branch id"]);
     pg_close($db);
     exit;
 }
@@ -67,7 +67,7 @@ $params = [
 $result = pg_query_params($db, $sql, $params);
 
 if (!$result) {
-    echo json_encode(["status" => "error", "message" => "Query failed"]);
+    echo json_encode(["success" => false, "message" => "Query failed"]);
     pg_close($db);
     exit;
 }
@@ -111,9 +111,9 @@ while ($monitor = pg_fetch_assoc($result)) {
 
 // ===================================== send back ========================================
 if (count($data) > 0) {
-    echo json_encode(["status" => "success", "data" => array_values($data)], JSON_UNESCAPED_UNICODE);
+    echo json_encode(["success" => true, "data" => array_values($data)], JSON_UNESCAPED_UNICODE);
 } else {
-    echo json_encode(["status" => "error", "data" => [], "message" => "no data found for this branch id"]);
+    echo json_encode(["success" => false, "data" => [], "message" => "no data found for this branch id"]);
 }
 // ========================================================================================
 

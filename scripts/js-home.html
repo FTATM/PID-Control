@@ -1,5 +1,172 @@
 <script>
+    const esp32_id = 1;
+    let chart = null;
     document.addEventListener('DOMContentLoaded', async () => {
+        await process();
+        setTimeInterval(500);
 
     });
+
+    async function setTimeInterval(millisecond) {
+        setInterval(() => {
+            process();
+        }, millisecond);
+    }
+
+
+    async function process() {
+        const data = await loadDataById(esp32_id);
+
+        console.log(data);
+        setValueInHTML(data);
+        const datasets = prepareDatasets(data);
+
+        initChart('chart', datasets);
+    }
+
+    async function loadDataById(id) {
+        try {
+            const res = await fetch('../api/fetch-setsById.php?id=' + id);
+            const raw = await res.json();
+            const data = raw.data ?? [];
+
+            return data;
+        } catch (err) {
+            console.error('error : ' + err);
+        }
+    }
+
+    function setValueInHTML(data) {
+        SetValueInHTMLById('sp', data['sp'] ?? '-');
+        SetValueInHTMLById('error', data['error'] ?? '-');
+        SetValueInHTMLById('kp', data['kp'] ?? '-');
+        SetValueInHTMLById('ki', data['ki'] ?? '-');
+        SetValueInHTMLById('kd', data['kd'] ?? '-');
+        SetValueInHTMLById('pv', data['pv'] ?? '-');
+        SetValueInHTMLById('mv', data['mv'] ?? '-');
+        SetValueInHTMLById('sv', data['sv'] ?? '-');
+    }
+    function prepareDatasets(data) {
+        if (!data || !data.logs) return null;
+
+        const logs = [...data.logs].sort((a, b) =>
+            new Date(a.created_at) - new Date(b.created_at)
+        );
+
+        const labels = logs.map(item => item.created_at);
+        const spData = logs.map(item => parseFloat(item.sp));
+        const pvData = logs.map(item => parseFloat(item.pv));
+
+        // รวมข้อมูลทั้งหมดเพื่อหาค่า min / max
+        const allValues = [...spData, ...pvData];
+
+        const min = Math.min(...allValues);
+        const max = Math.max(...allValues);
+
+        return {
+            labels,
+            datasets: [
+                {
+                    label: 'SP',
+                    data: spData,
+                    borderColor: '#ef4444',   // 🔴 สีแดง
+                    backgroundColor: '#ef4444',
+                    borderWidth: 4,
+                    tension: 0.3,
+                    cubicInterpolationMode: 'monotone',
+                    pointRadius: 0,
+                    pointHoverRadius: 0
+                },
+                {
+                    label: 'PV',
+                    data: pvData,
+                    borderColor: '#3b82f6',   // 🔵 สีฟ้า
+                    backgroundColor: '#3b82f6',
+                    borderWidth: 4,
+                    tension: 0.5,
+                    pointRadius: 0,
+                    pointHoverRadius: 0
+                }
+            ],
+            min,
+            max
+        };
+    }
+
+    function initChart(id, chartData) {
+
+        if (!chartData) return;
+
+        const ctx = document.getElementById(id);
+
+        const yMax = chartData.max + chartData.max * 0.5;
+
+        if (!chart) {
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: chartData.datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            // grid: {
+                            //     display: false
+                            // },
+                            // ticks: {
+                            //     font: { size: fontSize },
+                            //     color: '#78716c',
+                            //     maxRotation: 0,
+                            //     autoSkip: true
+                            // }
+                            type: 'time',
+                            time: {
+                                unit: 'millisecond',
+                                displayFormats: {
+                                    millisecond: 'ss'   // 👈 แสดงเฉพาะ millisecond
+                                },
+                                tooltipFormat: 'HH:mm:ss.SSS'
+                            },
+                            ticks: {
+                                color: '#78716c',
+                                autoSkip: true
+                            },
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            min: 0,
+                            max: yMax,
+                            ticks: {
+                                font: { size: fontSize },
+                                color: '#78716c',
+                                callback: v => v.toFixed(1)
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            chart.data.labels = chartData.labels;
+            chart.data.datasets = chartData.datasets;
+
+            // chart.options.scales.y.min = yMin;
+            chart.options.scales.y.max = yMax;
+
+            chart.update('none');
+        }
+    }
 </script>

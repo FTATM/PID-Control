@@ -12,6 +12,6 @@ date_default_timezone_set("Asia/Bangkok");
 // ✅ ใช้ตัวแปรเดียวกันกับที่เชื่อมต่อ
 $db = pg_connect("$host $port $dbname $credentials");
 if (!$db) {
-  echo json_encode(["status" => "error", "message" => "can not connect to database"]);
+  echo json_encode(["success" => false, "message" => "can not connect to database"]);
   exit;
 }

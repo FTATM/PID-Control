@@ -16,7 +16,6 @@ $subTitle = "Realtime Control Project";
 <body class="h-screen flex flex-col overflow-hidden main-container">
 
     <?php include "../components/header.php"; ?>
-
     <!-- Main Content -->
     <main class="flex-1 relative overflow-hidden grid-bg bg-canvas-light dark:bg-canvas-dark">
         <!-- เส้นโยงกลับ -->
@@ -28,7 +27,7 @@ $subTitle = "Realtime Control Project";
                     <span class="text-[10px] font-bold text-blue-500 dark:text-white-400 uppercase tracking-tight">PROCESS (PV)</span>
                     <span class="material-icons-outlined text-blue-400 text-sm">track_changes</span>
                 </div>
-                <div id="pv-2" class="text-3xl font-mono font-bold text-stone-600 dark:text-white-300">0</div>
+                <div id="sv" class="text-3xl font-mono font-bold text-stone-600 dark:text-white-300">0</div>
             </div>
         </div>
 
@@ -83,17 +82,38 @@ $subTitle = "Realtime Control Project";
                     </div>
                 </div>
                 <div class="flex flex-col justify-between">
-                    <div class="w-[2.5vw] h-[100px] flex items-center">
+                    <div class="w-[5vw] max-h-[100px] flex items-center">
+                        <div class="arrow-line flex-1"></div>
+                        <div class="w-[3vw] h-[100px] flex flex-col justify-between items-center bg-white border-2 border-slate-200 rounded-2xl p-[0.5vw] shadow-lg">
+                            <div id="multi-kp-1" class="text-[0.75vw]">1</div>
+                            <div id="multi-kp-10" class="text-[0.75vw]">10</div>
+                            <div id="multi-kp-100" class="text-[0.75vw]">100</div>
+                        </div>
                         <div class="arrow-line flex-1"></div>
                     </div>
-                    <div class="w-[2.5vw] h-[100px] flex items-center">
+                    <div class="w-[5vw] max-h-[100px] flex items-center">
+                        <div class="arrow-line flex-1"></div>
+                        <div class="w-[3vw] h-[100px] flex flex-col justify-between items-center bg-white border-2 border-slate-200 rounded-2xl p-[0.5vw] shadow-lg">
+                            <div id="multi-ki-1" class="text-[0.75vw]">1</div>
+                            <div id="multi-ki-10" class="text-[0.75vw]">10</div>
+                            <div id="multi-ki-100" class="text-[0.75vw]">100</div>
+                        </div>
                         <div class="arrow-line flex-1"></div>
                     </div>
-                    <div class="w-[2.5vw] h-[100px] flex items-center">
+                    <div class="w-[5vw] max-h-[100px] flex items-center">
+                        <div class="arrow-line flex-1"></div>
+                        <div class="w-[3vw] h-[100px] flex flex-col justify-between items-center bg-white border-2 border-slate-200 rounded-2xl p-[0.5vw] shadow-lg">
+                            <div id="multi-kd-1" class="text-[0.75vw]">1</div>
+                            <div id="multi-kd-10" class="text-[0.75vw]">10</div>
+                            <div id="multi-kd-100" class="text-[0.75vw]">100</div>
+                        </div>
                         <div class="arrow-line flex-1"></div>
                     </div>
                 </div>
-                <div class="w-[30vw] bg-black"> </div>
+                <div class="w-[30vw] bg-white border-2  border-slate-200 p-[0.5vw] rounded-2xl shadow-lg">
+
+                    <canvas id="chart"></canvas>
+                </div>
             </div>
             <div class="arrow-line flex-1"></div>
             <div class="w-[8vw] bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 shadow-lg">

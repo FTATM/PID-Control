@@ -1,6 +1,6 @@
 <?php
 
-require 'includes/fn/pg_connect.php';
+require 'configs/pg_connect.php';
 require 'database/migration_runner.php';
 
 $conn = pg_connect("$host $port $dbname $credentials");
