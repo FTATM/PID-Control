@@ -124,6 +124,8 @@
         pointer-events: none;
     }
 
+    
+
     /* 🌑 Sidebar Overlay */
     .sidebar-overlay {
         position: fixed;
@@ -205,6 +207,33 @@
         font-size: 0.95rem;
         transition: all 0.3s ease;
         position: relative;
+    }
+
+    #theme-toggle-container {
+        position: relative;
+        width: 56px;
+        height: 28px;
+        background-color: #e2e8f0;
+        border-radius: 9999px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    #theme-toggle-thumb {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 24px;
+        height: 24px;
+        background-color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s ease-in-out;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .dark #theme-toggle-thumb {
+        transform: translateX(28px);
     }
 
 

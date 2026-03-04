@@ -90,4 +90,13 @@
 
         div.classList.add('hidden');
     }
+
+    // Toggle Dark Mode Logic (For Demo)
+    const toggleDarkMode = () => {
+        document.documentElement.classList.toggle('dark');
+    };
+    // Add a keyboard listener for 'D' to toggle dark mode
+    document.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'd') toggleDarkMode();
+    });
 </script>
