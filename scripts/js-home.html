@@ -101,6 +101,8 @@
 
         const yMax = chartData.max + chartData.max * 0.5;
 
+        const axisColor = isDarkMode() ? '#FFFFFF' : '#6B7280';
+
         if (!chart) {
             chart = new Chart(ctx, {
                 type: 'line',
@@ -119,25 +121,16 @@
                     },
                     scales: {
                         x: {
-                            // grid: {
-                            //     display: false
-                            // },
-                            // ticks: {
-                            //     font: { size: fontSize },
-                            //     color: '#78716c',
-                            //     maxRotation: 0,
-                            //     autoSkip: true
-                            // }
                             type: 'time',
                             time: {
                                 unit: 'second',
                                 displayFormats: {
-                                    second: 'ss'   // 👈 แสดงเฉพาะ millisecond
+                                    second: 'ss'
                                 },
                                 tooltipFormat: 'HH:mm:ss.SSS'
                             },
                             ticks: {
-                                color: '#78716c',
+                                color: axisColor,
                                 autoSkip: true
                             },
                             grid: {
@@ -149,7 +142,7 @@
                             max: yMax,
                             ticks: {
                                 font: { size: fontSize },
-                                color: '#78716c',
+                                color: axisColor,
                                 callback: v => v.toFixed(1)
                             },
                             grid: {
@@ -165,6 +158,14 @@
 
             // chart.options.scales.y.min = yMin;
             chart.options.scales.y.max = yMax;
+
+            // 👇 update color ตอน update
+            chart.options.scales.x.ticks.color = axisColor;
+            chart.options.scales.y.ticks.color = axisColor;
+
+            chart.options.scales.y.grid.color = isDarkMode()
+                ? 'rgba(255,255,255,0.1)'
+                : 'rgba(0,0,0,0.05)';
 
             chart.update('none');
         }

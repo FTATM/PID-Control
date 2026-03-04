@@ -99,4 +99,8 @@
     document.addEventListener('keydown', (e) => {
         if (e.key.toLowerCase() === 'd') toggleDarkMode();
     });
+
+    function isDarkMode() {
+        return document.documentElement.classList.contains('dark');
+    }
 </script>

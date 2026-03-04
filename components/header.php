@@ -5,7 +5,7 @@ $currentTime = date('H:i:s');
 ?>
 
 <!-- Header -->
-<header class="flex items-center justify-between p-[0.5vw] border-b border-stone-200 bg-white shrink-0 dark:bg-slate-900 dark:border-slate-800">
+<header class="flex items-center justify-between p-[0.5vw] border-b border-stone-200 bg-white shrink-0 dark:bg-slate-950 dark:border-slate-800">
     <div class="flex items-center gap-3">
         
         <div class="w-[4rem] h-[4rem] rounded-xl flex items-center justify-center shadow-sm dark:text-white dark:bg-canvas-dark">
