@@ -1,3 +1,6 @@
+<!-- alert box lib -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <!-- JavaScript -->
 <script>
     const colors = [
@@ -16,6 +19,15 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
     })
+
+    // ===================== Date update ==================
+    async function setDateInit() {
+        const today = new Date();
+        const formattedtime = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}:${String(today.getSeconds()).padStart(2, '0')}`
+        const formattedDate = `${today.getDate()} ${thaiMonths[today.getMonth()]} ${today.getFullYear() + 543}`;
+        document.getElementById('last-update').textContent = formattedtime;
+        document.getElementById('start-date').textContent = formattedDate;
+    }
 
     //=============== Basic Function ==================
     function clamp(n, min, max) {

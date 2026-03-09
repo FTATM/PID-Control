@@ -58,7 +58,7 @@ if (!$row) {
 $sql_logs = "SELECT * FROM esp32_logs 
              WHERE esp32_id = $1 
              ORDER BY id DESC 
-             LIMIT 30";
+             LIMIT 15";
 
 $result_logs = pg_query_params($db, $sql_logs, [$id]);
 

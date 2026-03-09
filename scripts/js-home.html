@@ -1,14 +1,19 @@
 <script>
-    const esp32_id = 1;
+    const params = new URLSearchParams(window.location.search);
+
+    const esp32_id = params.get("id") ?? 1;
     let chart = null;
+    let allowKey = ['sp', 'pv'];
     document.addEventListener('DOMContentLoaded', async () => {
         await process();
-        setTimeInterval(500);
+        setinitState();
+        setTimeInterval(1000);
 
     });
 
     async function setTimeInterval(millisecond) {
         setInterval(() => {
+            setDateInit();
             process();
         }, millisecond);
     }
@@ -17,12 +22,35 @@
     async function process() {
         const data = await loadDataById(esp32_id);
 
-        console.log(data);
         setValueInHTML(data);
         const datasets = prepareDatasets(data);
 
         initChart('chart', datasets);
     }
+
+    function setinitState() {
+        const checkboxes = document.querySelectorAll(".allow-checkbox");
+        checkboxes.forEach(cb => {
+            cb.addEventListener("change", function () {
+
+                const value = this.value;
+
+                if (this.checked) {
+                    // เพิ่มค่า
+                    if (!allowKey.includes(value)) {
+                        allowKey.push(value);
+                    }
+
+                } else {
+                    // ลบค่า
+                    allowKey = allowKey.filter(item => item !== value);
+                }
+
+                console.log("allowKey:", allowKey);
+            });
+        });
+    }
+
 
     async function loadDataById(id) {
         try {
@@ -44,8 +72,35 @@
         SetValueInHTMLById('kd', data['kd'] ?? '-');
         SetValueInHTMLById('pv', data['pv'] ?? '-');
         SetValueInHTMLById('mv', data['mv'] ?? '-');
-        SetValueInHTMLById('sv', data['sv'] ?? '-');
+        SetValueInHTMLById('multi-kp', "x" + data['multi_kp'] ?? '-');
+        SetValueInHTMLById('multi-ki', "x" + data['multi_ki'] ?? '-');
+        SetValueInHTMLById('multi-kd', "x" + data['multi_kd'] ?? '-');
+        // SetValueInHTMLById('sv', data['sv'] ?? '-');
+
+        const btn = document.getElementById('btn-resetwifi');
+        const is_conn = document.getElementById('is_connect');
+        const is_status = document.getElementById('is_status');
+        // ===== Update UI =====
+        if (btn) {
+            btn.disabled = data['is_connected'] == 't' ? false : true;
+        } else {
+            console.warn('Not found Element id : btn-resetwifi');
+        }
+        if (is_conn) {
+            is_conn.textContent = data['is_connected'] == 't' ? "Connected" : "Not Connected";
+        } else {
+            console.warn('Not found Element id : is_connect');
+        }
+
+        if (is_status) {
+            is_status.classList.remove(data['is_connected'] == 't' ? "bg-red-500" : "bg-green-500");
+            is_status.classList.add(data['is_connected'] == 't' ? "bg-green-500" : "bg-red-500");
+        } else {
+            console.warn('Not found Element id : is_status');
+        }
+
     }
+
     function prepareDatasets(data) {
         if (!data || !data.logs) return null;
 
@@ -56,38 +111,98 @@
         const labels = logs.map(item => item.created_at);
         const spData = logs.map(item => parseFloat(item.sp));
         const pvData = logs.map(item => parseFloat(item.pv));
+        const kpData = logs.map(item => parseFloat(item.kp));
+        const kiData = logs.map(item => parseFloat(item.ki));
+        const kdData = logs.map(item => parseFloat(item.kd));
+
+
+        let datasets = [];
+        let allValues = [];
+
+        if (allowKey.includes('sp')) {
+            datasets.push({
+                label: 'SP',
+                data: spData,
+                borderColor: '#ef4444',
+                backgroundColor: '#ef4444',
+                borderWidth: 3,
+                tension: 0.3,
+                cubicInterpolationMode: 'monotone',
+                pointRadius: 0,
+                pointHoverRadius: 0
+            });
+            allValues.push(...spData);
+        }
+
+        if (allowKey.includes('pv')) {
+            datasets.push({
+                label: 'PV',
+                data: pvData,
+                borderColor: '#1A3FB8',
+                backgroundColor: '#FFFFFF',
+                borderWidth: 3,
+                tension: 0.3,
+                cubicInterpolationMode: 'monotone',
+                pointRadius: 0,
+                pointHoverRadius: 0
+            });
+            allValues.push(...pvData);
+        }
+        
+
+        if (allowKey.includes('kp')) {
+            datasets.push({
+                label: 'Kp',
+                data: kpData,
+                borderColor: '#FFE600',
+                backgroundColor: '#808080',
+                borderWidth: 3,
+                tension: 0.3,
+                cubicInterpolationMode: 'monotone',
+                pointRadius: 0,
+                pointHoverRadius: 0
+            });
+            allValues.push(...kpData);
+        }
+
+        if (allowKey.includes('ki')) {
+            datasets.push({
+                label: 'Ki',
+                data: kiData,
+                borderColor: '#00FFFF',
+                backgroundColor: '#808080',
+                borderWidth: 3,
+                tension: 0.3,
+                cubicInterpolationMode: 'monotone',
+                pointRadius: 0,
+                pointHoverRadius: 0
+            });
+            allValues.push(...kiData);
+        }
+
+        if (allowKey.includes('kd')) {
+            datasets.push({
+                label: 'Kd',
+                data: kdData,
+                borderColor: '#8000FF',
+                backgroundColor: '#808080',
+                borderWidth: 3,
+                tension: 0.3,
+                cubicInterpolationMode: 'monotone',
+                pointRadius: 0,
+                pointHoverRadius: 0
+            });
+            allValues.push(...kdData);
+        }
 
         // รวมข้อมูลทั้งหมดเพื่อหาค่า min / max
-        const allValues = [...spData, ...pvData];
 
         const min = Math.min(...allValues);
         const max = Math.max(...allValues);
 
         return {
             labels,
-            datasets: [
-                {
-                    label: 'SP',
-                    data: spData,
-                    borderColor: '#ef4444',   // 🔴 สีแดง
-                    backgroundColor: '#ef4444',
-                    borderWidth: 4,
-                    tension: 0.3,
-                    cubicInterpolationMode: 'monotone',
-                    pointRadius: 0,
-                    pointHoverRadius: 0
-                },
-                {
-                    label: 'PV',
-                    data: pvData,
-                    borderColor: '#3b82f6',   // 🔵 สีฟ้า
-                    backgroundColor: '#3b82f6',
-                    borderWidth: 4,
-                    tension: 0.5,
-                    pointRadius: 0,
-                    pointHoverRadius: 0
-                }
-            ],
+            datasets,
             min,
             max
         };
@@ -168,6 +283,66 @@
                 : 'rgba(0,0,0,0.05)';
 
             chart.update('none');
+        }
+    }
+
+    async function resetWifi() {
+        console.log("========================= resetwifi =====================");
+
+        const btn = document.getElementById('btn-resetwifi');
+        const is_conn = document.getElementById('is_connect');
+        const is_status = document.getElementById('is_status');
+
+        if (!btn) {
+            console.warn("Not found Element id : btn-resetwifi");
+            return;
+        }
+
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`../api/update-setsById.php?id=${esp32_id}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    "is_connected": "f",
+                    "is_resetwifi": "t"
+                })
+            });
+
+            if (!res.ok) {
+                throw new Error(`HTTP Error ${res.status}`);
+            }
+
+            const raw = await res.json();
+
+            if (!raw.success) {
+                console.error("error => " + raw.message);
+                return;
+            }
+
+            console.log("Reset Wifi Success.");
+
+            // ===== Update UI =====
+            if (is_conn) {
+                is_conn.textContent = "Not Connected";
+            } else {
+                console.warn('Not found Element id : is_connect');
+            }
+
+            if (is_status) {
+                is_status.classList.remove("bg-green-500");
+                is_status.classList.add("bg-red-500");
+            } else {
+                console.warn('Not found Element id : is_status');
+            }
+
+        } catch (err) {
+            console.error("Reset Wifi Error:", err);
+        } finally {
+            btn.disabled = false;
         }
     }
 </script>

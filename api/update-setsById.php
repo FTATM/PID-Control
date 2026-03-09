@@ -32,6 +32,7 @@ if (empty($id)) {
 // ================= Get JSON =================
 $raw = file_get_contents("php://input");
 $data = json_decode($raw, true);
+$is_resetwifi = false;
 
 if (!$data) {
     http_response_code(400);
@@ -125,6 +126,8 @@ try {
         echo json_encode(["success" => false, "message" => "Insert Log failed"]);
         exit;
     }
+
+
 
     if (!pg_query($db, "COMMIT")) {
         http_response_code(500);

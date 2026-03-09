@@ -18,21 +18,6 @@ $subTitle = "Realtime Control Project";
     <?php include "../components/header.php"; ?>
     <!-- Main Content -->
     <main class="flex-1 relative overflow-hidden grid-bg bg-[#f5f5f5] dark:bg-canvas-dark">
-        <!-- เส้นโยงกลับ -->
-        <div class="feedback-line"></div>
-
-        <!-- ==== PROCESS (PV) ==== -->
-        <div class="absolute right-[42.01%] top-[63%]">
-            <div
-                class="w-[8vw] bg-blue-50 boxx dark:bg-blue-950 border-2 border-blue-200 dark:border-blue-900 rounded-2xl p-4 z-10 shadow-xl dark:shadow-black/50">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-[10px] font-bold text-blue-500 dark:text-blue-50 uppercase tracking-tight">PROCESS
-                        (PV)</span>
-                    <span class="material-icons-outlined text-blue-400 text-sm">track_changes</span>
-                </div>
-                <div id="pv" class="text-3xl font-mono font-bold text-blue-950 dark:text-white">0</div>
-            </div>
-        </div>
 
         <div class="flex items-center w-full p-[3vw]">
             <!-- ==== SETPOINT (SP) ==== -->
@@ -63,7 +48,28 @@ $subTitle = "Realtime Control Project";
                 </div>
                 <div id="error" class="text-3xl font-mono font-bold text-orange-600 dark:text-white">157.24</div>
             </div>
-            <div class="arrow-line flex-1"></div>
+            <div class="arrow-line flex-1">
+                <div class="absolute -top-[20vh] left-[1.4145vw] min-h-[40vh] flex flex-col justify-between">
+                    <div class="w-[1.4145vw] h-[10vh] max-h-[100px] flex items-center">
+                        <div class="arrow-line flex-1"> </div>
+                    </div>
+                    <div class="w-[1.4145vw] h-[10vh] max-h-[100px] flex items-center">
+                        <div class="flex-1"></div>
+                    </div>
+                    <div class="w-[1.4145vw] h-[10vh] max-h-[100px] flex items-center">
+                        <div class="arrow-line flex-1"> </div>
+                    </div>
+                </div>
+                <div class="absolute -top-[15vh] left-[1.4145vw] h-[30vh] max-h-[40vh] flex flex-col">
+                    <div class="h-[15vh] flex">
+                        <div class="vertical-line flex-1"></div>
+                    </div>
+                    <div class="h-[15vh] flex">
+                        <div class="vertical-line flex-1"></div>
+                    </div>
+                </div>
+                <div class="absolute -top-[0.25vw] left-[1.2vw] bg-stone-400 w-[0.5vw] h-[0.5vw] rounded-full"></div>
+            </div>
             <div class="min-h-[40vh] flex gap-[0.25vw]">
                 <div class="flex flex-col justify-between">
 
@@ -79,7 +85,10 @@ $subTitle = "Realtime Control Project";
                         </div>
                         <div class="flex justify-between">
                             <div id="kp" class="text-3xl font-mono font-bold text-stone-600 dark:text-white">0.00</div>
-                            <div id="multi-kp" class="text-[0.75vw] dark:text-white">x1</div>
+                            <div class="flex flex-col gap-2 items-end">
+                                <div id="multi-kp" class="text-[0.75vw] dark:text-white">x1</div>
+                                <input value="kp" type="checkbox" class="allow-checkbox z-10 bg-gray-400" />
+                            </div>
                         </div>
                     </div>
 
@@ -95,7 +104,10 @@ $subTitle = "Realtime Control Project";
                         </div>
                         <div class="flex justify-between">
                             <div id="ki" class="text-3xl font-mono font-bold text-stone-600 dark:text-white">0.00</div>
-                            <div id="multi-ki" class="text-[0.75vw] dark:text-white">x1</div>
+                            <div class="flex flex-col gap-2 items-end">
+                                <div id="multi-ki" class="text-[0.75vw] dark:text-white">x1</div>
+                                <input value="ki" type="checkbox" class="allow-checkbox z-10 bg-gray-400" />
+                            </div>
                         </div>
                     </div>
 
@@ -111,7 +123,10 @@ $subTitle = "Realtime Control Project";
                         </div>
                         <div class="flex justify-between">
                             <div id="kd" class="text-3xl font-mono font-bold text-stone-600 dark:text-white">0.00</div>
-                            <div id="multi-kd" class="text-[0.75vw] dark:text-white">x1</div>
+                            <div class="flex flex-col gap-2 items-end">
+                                <div id="multi-kd" class="text-[0.75vw] dark:text-white">x1</div>
+                                <input value="kd" type="checkbox" class="allow-checkbox z-10 bg-gray-400" />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -146,36 +161,53 @@ $subTitle = "Realtime Control Project";
                 </div>
                 <div id="mv" class="text-3xl font-mono font-bold text-stone-600 dark:text-white">0.00</div>
             </div>
-
-            <!-- ==== PV ==== -->
-            <!-- <div class="w-[8vw] bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 shadow-xl dark:shadow-black/50">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-[10px] font-bold text-blue-500 dark:text-white-400 uppercase tracking-tight">PROCESS (PV)</span>
-                    <span class="material-icons-outlined text-blue-400 text-sm">track_changes</span>
-                </div>
-                <div id="pv" class="text-3xl font-mono font-bold text-stone-600 dark:text-white">0.00</div>
-            </div> -->
             <div class="arrow-line flex-1"></div>
-            <div
-                class="w-[2vw] h-[2vw] rounded-full bg-gradient-to-br from-gray-700 via-white to-gray-700 shadow-xl dark:shadow-black/50 border border-gray-400 flex items-center justify-center z-10">
+            <div class="relative w-[2vw] h-[2vw] rounded-full bg-gradient-to-br from-gray-700 via-white to-gray-700 shadow-xl dark:shadow-black/50 border border-gray-400 flex items-center justify-center z-10">
                 <span class="text-[0.75vw] font-bold">Σ</span>
+                <div class="absolute right-[1vw] flex flex-col justify-between">
+                    <div class="w-[14.856vw] h-[10vh] max-h-[100px] flex items-center">
+                        <div class="horizontal-line flex-1"></div>
+                    </div>
+                    <div class="w-[14.856vw] h-[10vh] max-h-[100px] flex items-center">
+                        <div class="flex-1"></div>
+                    </div>
+                    <div class="w-[14.856vw] h-[10vh] max-h-[100px] flex items-center">
+                        <div class="horizontal-line flex-1"></div>
+                    </div>
+                </div>
+                <div class="absolute h-[20vh] max-h-[200px] flex flex-col justify-between">
+                    <div class="h-[7vh] flex">
+                        <div class="vertical-line arrow-down flex-1"></div>
+                    </div>
+                    <div class="h-[7vh] flex">
+                        <div class="vertical-line arrow-up flex-1"></div>
+                    </div>
+                </div>
             </div>
             <div class="arrow-line flex-1"></div>
             <div class="w-[2vw] h-[2vw] relative text-[2vw] flex justify-center items-center shadow-sm z-10">
                 <span class="text-[0.5vw] font-bold dark:text-white">Output</span>
-
-                <!-- ==== MV ==== -->
-                <!-- <div class="absolute bottom-[10vh] w-[8vw] border-2 bg-green-50 border-green-200 dark:border-green-900/50 rounded-2xl p-4 shadow-xl dark:shadow-black/50">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[10px] font-bold text-green-500 dark:text-white-400 uppercase tracking-tight">MV</span>
-                        <span class="material-icons-outlined text-green-400 text-sm">track_changes</span>
-                    </div>
-                    <div id="mv" class="text-3xl font-mono font-bold text-stone-600 dark:text-white">0.00</div>
-                </div> -->
             </div>
             <div class="arrow-line flex-1"></div>
 
         </div>
+        <!-- เส้นโยงกลับ -->
+        <div class="feedback-line"></div>
+
+        <!-- ==== PROCESS (PV) ==== -->
+        <div class="absolute right-[42.01%] top-[63%]">
+            <div
+                class="w-[8vw] bg-blue-50 boxx dark:bg-blue-950 border-2 border-blue-200 dark:border-blue-900 rounded-2xl p-4 z-10 shadow-xl dark:shadow-black/50">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-bold text-blue-500 dark:text-blue-50 uppercase tracking-tight">PROCESS
+                        (PV)</span>
+                    <span class="material-icons-outlined text-blue-400 text-sm">track_changes</span>
+                </div>
+                <div id="pv" class="text-3xl font-mono font-bold text-blue-950 dark:text-white">0</div>
+            </div>
+        </div>
+
+        <!-- ==== Floating box ==== -->
         <div class="absolute bottom-6 left-6 flex items-center gap-3">
             <div class="bg-white box rounded-xl p-4 border border-stone-400 dark:shadow-black/50 min-w-[280px]">
                 <div class="flex items-center justify-between mb-3">
@@ -185,8 +217,8 @@ $subTitle = "Realtime Control Project";
                             class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-white">Connectivity</span>
                     </div>
                     <div class="flex items-center gap-1">
-                        <div class="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span class="text-[10px] font-medium text-slate-400 dark:text-white">Connected</span>
+                        <div id="is_status" class="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span id="is_connect" class="text-[10px] font-medium text-slate-400 dark:text-white">-</span>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2 mb-3">
@@ -201,7 +233,7 @@ $subTitle = "Realtime Control Project";
                         <span class="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-white"></span>
                     </div>
                 </div>
-                <button
+                <button id="btn-resetwifi" onclick="resetWifi()"
                     class="export-btn w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-[0.75vw] dark:text-white font-bold uppercase flex items-center justify-center gap-2 transition-colors">
                     <span class="material-icons-outlined text-sm dark:text-white">wifi_off</span>
                     Reset Wifi ESP32
