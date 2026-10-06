@@ -1,4 +1,4 @@
 <?php
-  header("Location:/PID/pages/Home.php");
+  header("Location:/PID/pages/home.php");
   die();
 ?>

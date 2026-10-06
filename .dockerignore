@@ -1,0 +1,12 @@
+.git
+.gitignore
+.DS_Store
+**/.DS_Store
+.env
+vendor
+docker-compose.yml
+Dockerfile
+.dockerignore
+DOCKER.md
+.github
+docker-compose.prod.yml

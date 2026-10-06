@@ -1,0 +1,62 @@
+services:
+  web:
+    build: .
+    container_name: pid-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    environment:
+      DB_HOST: db            # ชื่อ service ของ database (ไม่ใช่ localhost)
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-pid}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASS: ${DB_PASS:-postgres}
+      CAMERAS: ${CAMERAS:-}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      MQTT_HOST: mqtt        # ชื่อ service ของ broker (ใช้จากโค้ด PHP ภายใน Docker)
+      MQTT_PORT: 1883
+      MQTT_USER: ${MQTT_USER:-}
+      MQTT_PASS: ${MQTT_PASS:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+
+  mqtt:
+    build: ./docker/mosquitto
+    container_name: pid-mqtt
+    restart: unless-stopped
+    environment:
+      MQTT_USER: ${MQTT_USER:-}
+      MQTT_PASS: ${MQTT_PASS:-}
+      TZ: Asia/Bangkok
+    volumes:
+      - mqttdata:/mosquitto/data
+    ports:
+      - "${MQTT_PORT:-1883}:1883"        # ESP32 / PLC ต่อที่ IP-เครื่อง:1883
+      - "${MQTT_WS_PORT:-9001}:9001"     # MQTT over WebSocket สำหรับหน้าเว็บ
+
+  db:
+    image: postgres:17
+    container_name: pid-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-pid}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASS:-postgres}
+      TZ: Asia/Bangkok
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${DB_EXPOSE_PORT:-5433}:5432"   # ต่อจาก DBeaver/pgAdmin บนเครื่องได้ที่ port 5433
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-pid}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+  mqttdata:
