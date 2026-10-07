@@ -13,53 +13,71 @@ class ComposerStaticInit44f35196b99daca637bba7043da60fd9
     );
 
     public static $prefixLengthsPsr4 = array (
-        'S' => 
+        'S' =>
         array (
             'Symfony\\Polyfill\\Php80\\' => 23,
             'Symfony\\Polyfill\\Mbstring\\' => 26,
             'Symfony\\Polyfill\\Ctype\\' => 23,
         ),
-        'P' => 
+        'P' =>
         array (
+            'Psr\\Log\\' => 8,
             'PhpOption\\' => 10,
+            'PhpMqtt\\Client\\' => 15,
             'PHPMailer\\PHPMailer\\' => 20,
         ),
-        'G' => 
+        'M' =>
+        array (
+            'MyCLabs\\Enum\\' => 13,
+        ),
+        'G' =>
         array (
             'GrahamCampbell\\ResultType\\' => 26,
         ),
-        'D' => 
+        'D' =>
         array (
             'Dotenv\\' => 7,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'Symfony\\Polyfill\\Php80\\' => 
+        'Symfony\\Polyfill\\Php80\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-php80',
         ),
-        'Symfony\\Polyfill\\Mbstring\\' => 
+        'Symfony\\Polyfill\\Mbstring\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
         ),
-        'Symfony\\Polyfill\\Ctype\\' => 
+        'Symfony\\Polyfill\\Ctype\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-ctype',
         ),
-        'PhpOption\\' => 
+        'Psr\\Log\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/psr/log/src',
+        ),
+        'PhpOption\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption',
         ),
-        'PHPMailer\\PHPMailer\\' => 
+        'PhpMqtt\\Client\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/php-mqtt/client/src',
+        ),
+        'PHPMailer\\PHPMailer\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpmailer/phpmailer/src',
         ),
-        'GrahamCampbell\\ResultType\\' => 
+        'MyCLabs\\Enum\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/myclabs/php-enum/src',
+        ),
+        'GrahamCampbell\\ResultType\\' =>
         array (
             0 => __DIR__ . '/..' . '/graham-campbell/result-type/src',
         ),
-        'Dotenv\\' => 
+        'Dotenv\\' =>
         array (
             0 => __DIR__ . '/..' . '/vlucas/phpdotenv/src',
         ),

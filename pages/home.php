@@ -1,6 +1,16 @@
 <?php
+require_once __DIR__ . '/../configs/config.php';
+
 $pageTitle = "PID Control";
 $subTitle = "Realtime Control Project";
+
+// ค่าสำหรับต่อ MQTT over WebSocket จากหน้าเว็บ (host = เครื่องเดียวกับที่เปิดเว็บ)
+// หมายเหตุ: user/pass จะมองเห็นได้ในหน้าเว็บ ถ้าเปิดสู่ internet ควรใช้ user ที่อ่านได้อย่างเดียว
+$mqttWebConfig = [
+    'port' => (int) ($_ENV['MQTT_WS_PORT'] ?? 9001),
+    'user' => $_ENV['MQTT_USER'] ?? '',
+    'pass' => $_ENV['MQTT_PASS'] ?? '',
+];
 ?>
 
 <!DOCTYPE html>
@@ -241,6 +251,11 @@ $subTitle = "Realtime Control Project";
             </div>
         </div>
         <div class="absolute bottom-6 right-6 flex flex-col gap-3">
+            <button class="export-btn" onclick="showPopup('popup-mqtt-guide')">
+                <span class="material-icons-outlined text-orange-400 text-lg">hub</span>
+                <span class="export-btn__label">MQTT Guide</span>
+            </button>
+
             <button class="export-btn">
                 <span class="material-icons-outlined text-blue-400 text-lg">description</span>
                 <span class="export-btn__label">CSV Report</span>
@@ -253,8 +268,11 @@ $subTitle = "Realtime Control Project";
         </div>
     </main>
 
+    <?php include "../components/popup-mqtt-guide.php"; ?>
     <?php include "../components/footer.php"; ?>
     <?php include "../scripts/js.html"; ?>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js"></script>
+    <script>const MQTT_CONFIG = <?php echo json_encode($mqttWebConfig); ?>;</script>
     <?php include "../scripts/js-home.html"; ?>
 
 
