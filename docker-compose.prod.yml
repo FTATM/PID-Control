@@ -2,6 +2,22 @@
 # ต้องมีแค่ไฟล์นี้ + .env ในโฟลเดอร์เดียวกัน แล้วสั่ง:
 #   docker compose -f docker-compose.prod.yml pull
 #   docker compose -f docker-compose.prod.yml up -d
+# ค่า environment ที่ใช้ร่วมกันระหว่าง web และ mqtt-worker
+x-app-env: &app-env
+  DB_HOST: db            # ชื่อ service ของ database (ไม่ใช่ localhost)
+  DB_PORT: 5432
+  DB_NAME: ${DB_NAME:-pid}
+  DB_USER: ${DB_USER:-postgres}
+  DB_PASS: ${DB_PASS:-postgres}
+  CAMERAS: ${CAMERAS:-}
+  APP_ENV: ${APP_ENV:-production}
+  APP_DEBUG: ${APP_DEBUG:-false}
+  MQTT_HOST: mqtt        # ชื่อ service ของ broker (ใช้จากโค้ด PHP ภายใน Docker)
+  MQTT_PORT: 1883
+  MQTT_WS_PORT: ${MQTT_WS_PORT:-9001}   # port ที่หน้าเว็บ (browser) ใช้ต่อ WebSocket
+  MQTT_USER: ${MQTT_USER:-}
+  MQTT_PASS: ${MQTT_PASS:-}
+
 services:
   web:
     image: ghcr.io/ftatm/pid-control:${IMAGE_TAG:-latest}
@@ -9,23 +25,29 @@ services:
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-8080}:80"
-    environment:
-      DB_HOST: db            # ชื่อ service ของ database (ไม่ใช่ localhost)
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-pid}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASS: ${DB_PASS:-postgres}
-      CAMERAS: ${CAMERAS:-}
-      APP_ENV: ${APP_ENV:-production}
-      APP_DEBUG: ${APP_DEBUG:-false}
-      MQTT_HOST: mqtt        # ชื่อ service ของ broker (ใช้จากโค้ด PHP ภายใน Docker)
-      MQTT_PORT: 1883
-      MQTT_USER: ${MQTT_USER:-}
-      MQTT_PASS: ${MQTT_PASS:-}
+    environment: *app-env
     depends_on:
       db:
         condition: service_healthy
       mqtt:
+        condition: service_started
+
+  # รับข้อมูล ESP32 จาก MQTT แล้วบันทึกลง database (ใช้ image เดียวกับ web)
+  mqtt-worker:
+    image: ghcr.io/ftatm/pid-control:${IMAGE_TAG:-latest}
+    container_name: pid-mqtt-worker
+    restart: unless-stopped
+    init: true             # ให้ docker stop หยุด php ได้ทันที
+    command: ["php", "workers/mqtt_worker.php"]
+    environment:
+      <<: *app-env
+      RUN_MIGRATIONS: "false"   # ให้ web เป็นคนรัน migration
+    depends_on:
+      db:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+      web:
         condition: service_started
 
   mqtt:

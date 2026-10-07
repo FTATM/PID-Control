@@ -10,3 +10,4 @@ Dockerfile
 DOCKER.md
 .github
 docker-compose.prod.yml
+firmware

@@ -16,6 +16,13 @@ docker compose up -d --build
 ตอน start ครั้งแรก:
 1. PostgreSQL สร้าง database และตาราง `migrations` ให้อัตโนมัติ
 2. container `web` รอ DB พร้อม แล้วรัน `php migrate.php` ให้เอง (ทุกครั้งที่ start, รันเฉพาะ migration ใหม่)
+3. container `mqtt-worker` เริ่มรับข้อมูลจาก ESP32 ผ่าน MQTT แล้วบันทึกลง DB
+
+**เครื่องใหม่ต้องสร้างแถว ESP32 ก่อน** (DB ใหม่ยังไม่มีข้อมูล ถ้าไม่สร้าง worker จะข้ามข้อความทั้งหมดและ log ว่า `Data not found`)
+```powershell
+curl.exe -X POST http://localhost:8080/PID/api/create-sets.php -H "Content-Type: application/json" -d '{\"name\":\"esp32-1\"}'
+```
+ได้ `id` กลับมา (ครั้งแรกคือ 1) ให้ ESP32 ใช้ id นี้ใน topic `pid/esp32/{id}/...`
 
 ## หมายเหตุเรื่อง .env
 - `DB_HOST` ใน .env **ไม่มีผล** ใน Docker: compose กำหนดเป็น `db` ให้เสมอ จึงใช้ .env ไฟล์เดิมร่วมกับ XAMPP ได้
@@ -24,7 +31,10 @@ docker compose up -d --build
 - ถ้าเปลี่ยน `DB_PASS` หลังจากรันครั้งแรกแล้ว ต้องลบ volume เดิม (`docker compose down -v`) เพราะ PostgreSQL ตั้งรหัสผ่านแค่ตอนสร้างครั้งแรก
 
 ## ESP32
-อุปกรณ์ต้องยิง API มาที่ IP ของเครื่องที่รัน Docker พร้อม port เช่น
+แนะนำให้ส่งผ่าน **MQTT** (เร็วกว่า, หน้าเว็บอัปเดต realtime) ดูหัวข้อ MQTT ด้านล่าง
+ตัวอย่าง firmware สำหรับทดสอบ: `firmware/esp32_mqtt_test/esp32_mqtt_test.ino`
+
+แบบเดิม (HTTP) ยังใช้ได้: อุปกรณ์ต้องยิง API มาที่ IP ของเครื่องที่รัน Docker พร้อม port เช่น
 `http://192.168.1.50:8080/PID/api/update-setsById.php?id=1`
 (ถ้าอยากใช้ port 80 เหมือนเดิม ตั้ง `WEB_PORT=80` ใน .env)
 
@@ -35,8 +45,22 @@ Service `mqtt` เปิด 2 port:
 |---|---|---|
 | ESP32 / PLC / โปรแกรมบนเครื่องอื่น | IP-เครื่องที่รัน Docker | 1883 |
 | หน้าเว็บ (JavaScript, MQTT over WebSocket) | IP-เครื่องที่รัน Docker | 9001 |
-| โค้ด PHP ภายใน container `web` | `mqtt` | 1883 |
+| โค้ด PHP ภายใน container `web` / `mqtt-worker` | `mqtt` | 1883 |
 
+**Topics** (ดูรายละเอียดและตัวอย่างได้จากปุ่ม **MQTT Guide** มุมขวาล่างของหน้าเว็บ)
+
+| Topic | ESP32 | Payload |
+|---|---|---|
+| `pid/esp32/{id}/state` | publish | JSON เช่น `{"sp":50,"pv":25.4,"mv":12.5}` |
+| `pid/esp32/{id}/status` | publish (retain) + Last Will | `online` / `offline` (ข้อความธรรมดา ไม่ใช่ JSON) |
+| `pid/esp32/{id}/cmd` | subscribe | `{"reset_wifi":true}` |
+
+- `mqtt-worker` (image เดียวกับ `web`) subscribe `state` และ `status` แล้วบันทึกลง `esp32_sets` + `esp32_logs`
+- หน้าเว็บต่อ broker ผ่าน WebSocket port `MQTT_WS_PORT` โดยตรง จึงอัปเดตทันทีที่ ESP32 ส่ง ถ้าไม่มีข้อมูล MQTT จะกลับไปอ่านจาก DB ทุก 1 วินาที
+- **Windows Firewall:** ESP32 ต่อเข้ามาไม่ได้ถ้า port ถูกบล็อก (โดยเฉพาะเมื่อ network เป็น Public) เปิด PowerShell แบบ Administrator แล้วรัน
+  ```powershell
+  New-NetFirewallRule -DisplayName "PID MQTT" -Direction Inbound -Protocol TCP -LocalPort 1883,9001,8080 -Action Allow -Profile Any
+  ```
 - ตั้ง `MQTT_USER` / `MQTT_PASS` ใน .env เพื่อบังคับใช้รหัสผ่าน (แนะนำ) ถ้าเว้นว่างจะเปิดให้เชื่อมต่อแบบไม่ต้องล็อกอิน
 - ค่า `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER`, `MQTT_PASS` ถูกเขียนลง .env ของเว็บให้แล้ว อ่านจาก PHP ได้ด้วย `$_ENV['MQTT_HOST']`
 - ข้อความที่ส่งแบบ retain และ session ถูกเก็บไว้ใน volume `mqttdata`
@@ -44,8 +68,9 @@ Service `mqtt` เปิด 2 port:
 ทดสอบ:
 ```bash
 docker compose exec mqtt mosquitto_sub -t 'pid/#' -v -u USER -P PASS
-docker compose exec mqtt mosquitto_pub -t pid/esp32/1/pv -m 25.4 -u USER -P PASS
+docker compose exec mqtt mosquitto_pub -t pid/esp32/1/state -m '{\"sp\":50,\"pv\":25.4}' -u USER -P PASS
 ```
+(ไม่ได้ตั้งรหัสผ่าน ให้ตัด `-u USER -P PASS` ออก, ใน cmd.exe ใช้ `-m "{\"sp\":50}"` แทน single quote)
 
 ## Deploy ด้วย GitHub Container Registry (ghcr.io)
 
@@ -87,6 +112,7 @@ docker compose -f docker-compose.prod.yml up -d
 ```bash
 docker compose logs -f web              # ดู log เว็บ/migration
 docker compose logs -f mqtt             # ดู log MQTT broker
+docker compose logs -f mqtt-worker      # ดู log การบันทึกข้อมูลจาก ESP32 (online/offline, error)
 docker compose exec web php migrate.php # รัน migration เอง
 docker compose exec db psql -U postgres -d pid
 docker compose down                     # หยุด (ข้อมูลยังอยู่)

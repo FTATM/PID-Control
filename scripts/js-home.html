@@ -4,28 +4,203 @@
     const esp32_id = params.get("id") ?? 1;
     let chart = null;
     let allowKey = ['sp', 'pv'];
+
+    // ===================== Realtime config =====================
+    const CHART_WINDOW_MS = 30 * 1000;  // กราฟแสดงย้อนหลัง 30 วินาที
+    const HISTORY_LIMIT = 300;          // จำนวน logs ที่โหลดจาก DB (พอสำหรับ 10 ครั้ง/วินาที x 30 วินาที)
+    // ไม่มีข้อความ MQTT เกิน 3 เท่าของรอบส่งของ ESP32 -> กลับไป polling จาก DB
+    // (ต่ำสุด 3 วินาที สูงสุด 30 วินาที เพื่อไม่ให้สถานะกระพริบเมื่อ ESP32 ส่งช้า)
+    const STALE_FACTOR = 3;
+    const STALE_MIN_MS = 3000;
+    const STALE_MAX_MS = 30000;
+    const DECIMAL_FIELDS = ['sp', 'error', 'kp', 'ki', 'kd', 'pv', 'mv', 'sv'];
+
+    let currentData = null;   // ค่าล่าสุดของ esp32_sets
+    let logs = [];            // ข้อมูลกราฟ
+    let mqttClient = null;
+    let lastLiveAt = 0;       // เวลาที่ได้รับข้อความ MQTT ล่าสุด
+    let liveIntervalMs = 0;   // ระยะห่างเฉลี่ยระหว่างข้อความ MQTT (รอบส่งของ ESP32)
+    let mqttStatus = null;    // 't' / 'f' จาก topic status (ใหม่กว่าค่าใน DB เสมอ)
+    let renderPending = false;
+
     document.addEventListener('DOMContentLoaded', async () => {
         await process();
         setinitState();
         setTimeInterval(1000);
-
+        connectMqtt();
     });
 
     async function setTimeInterval(millisecond) {
         setInterval(() => {
             setDateInit();
-            process();
+
+            // มีข้อมูลสดจาก MQTT อยู่ = ไม่ต้อง fetch
+            // ESP32 ที่ยังส่งผ่าน HTTP หรือ MQTT หลุด = fetch จาก DB ทุก 1 วินาทีเหมือนเดิม
+            const isLive = mqttClient?.connected && Date.now() - lastLiveAt < getStaleMs();
+            if (!isLive) {
+                process();
+            }
+            setMqttMode(isLive);
         }, millisecond);
     }
 
-
+    // โหลดค่าล่าสุด + ประวัติจาก database
     async function process() {
         const data = await loadDataById(esp32_id);
+        if (!data || !data.id) return;
 
-        setValueInHTML(data);
-        const datasets = prepareDatasets(data);
+        const { logs: history, ...sets } = data;
+        currentData = sets;
+        logs = history ?? [];
 
-        initChart('chart', datasets);
+        // สถานะจาก MQTT สดกว่า DB (เช่นตอน worker ยังไม่ได้บันทึก) อย่าให้ค่าเก่าจาก DB ทับ
+        if (mqttClient?.connected && mqttStatus) {
+            currentData.is_connected = mqttStatus;
+        }
+        pruneLogs();
+        scheduleRender();
+    }
+
+    // วาดใหม่ไม่เกิน 1 ครั้งต่อ frame แม้ข้อความ MQTT จะมาถี่
+    function scheduleRender() {
+        if (renderPending) return;
+        renderPending = true;
+
+        requestAnimationFrame(() => {
+            renderPending = false;
+            if (!currentData) return;
+
+            setValueInHTML(currentData);
+            if (logs.length > 0) {
+                initChart('chart', prepareDatasets({ logs }));
+            }
+        });
+    }
+
+    function toTime(value) {
+        return value instanceof Date ? value.getTime() : new Date(String(value).replace(' ', 'T')).getTime();
+    }
+
+    // เก็บเฉพาะข้อมูลในช่วง CHART_WINDOW_MS ล่าสุด
+    function pruneLogs() {
+        if (logs.length === 0) return;
+
+        const newest = Math.max(...logs.map(item => toTime(item.created_at)));
+        logs = logs.filter(item => toTime(item.created_at) >= newest - CHART_WINDOW_MS);
+    }
+
+    // ===================== MQTT (realtime) =====================
+    function getStaleMs() {
+        return clamp(liveIntervalMs * STALE_FACTOR, STALE_MIN_MS, STALE_MAX_MS);
+    }
+
+    // วัดรอบส่งของ ESP32 แบบค่าเฉลี่ย (ไม่นับช่วงที่หายไปนาน เช่น ESP32 ปิดเครื่อง)
+    function updateLiveInterval() {
+        const now = Date.now();
+        const gap = now - lastLiveAt;
+
+        if (lastLiveAt && gap <= STALE_MAX_MS) {
+            liveIntervalMs = liveIntervalMs ? liveIntervalMs * 0.8 + gap * 0.2 : gap;
+        }
+        lastLiveAt = now;
+    }
+
+    // แสดงสถานะแหล่งข้อมูลใน MQTT Guide
+    function setMqttMode(isLive) {
+        const badge = document.getElementById('mqtt-mode');
+        if (!badge) return;
+
+        let text = 'Polling DB (1s) · broker not connected';
+        let color = 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-300';
+        if (isLive) {
+            text = 'Live via MQTT';
+            color = 'bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-300';
+        } else if (mqttClient?.connected) {
+            text = 'Polling DB (1s) · no MQTT data from ESP32';
+            color = 'bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-300';
+        }
+
+        badge.textContent = text;
+        badge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full ' + color;
+    }
+
+    function connectMqtt() {
+        if (typeof mqtt === 'undefined' || typeof MQTT_CONFIG === 'undefined') {
+            console.warn('MQTT not available, use polling');
+            return;
+        }
+
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        const url = `${protocol}://${location.hostname}:${MQTT_CONFIG.port}`;
+        const topicState = `pid/esp32/${esp32_id}/state`;
+        const topicStatus = `pid/esp32/${esp32_id}/status`;
+
+        mqttClient = mqtt.connect(url, {
+            username: MQTT_CONFIG.user || undefined,
+            password: MQTT_CONFIG.pass || undefined,
+            reconnectPeriod: 3000,
+            connectTimeout: 5000,
+        });
+
+        mqttClient.on('connect', () => {
+            console.log('MQTT connected: ' + url);
+            mqttClient.subscribe([topicState, topicStatus]);
+        });
+
+        mqttClient.on('offline', () => {
+            console.warn('MQTT offline, fallback to polling');
+        });
+
+        mqttClient.on('error', (err) => {
+            console.error('MQTT error: ' + err.message);
+        });
+
+        mqttClient.on('message', (topic, payload) => {
+            if (!currentData) return;
+
+            const message = payload.toString();
+            if (topic === topicState) {
+                onMqttState(message);
+            } else if (topic === topicStatus) {
+                onMqttStatus(message);
+            }
+        });
+    }
+
+    function onMqttState(message) {
+        let data;
+        try {
+            data = JSON.parse(message);
+        } catch (err) {
+            console.warn('MQTT invalid JSON: ' + message);
+            return;
+        }
+        if (!data || typeof data !== 'object') return;
+
+        // รวมค่าใหม่เข้ากับค่าล่าสุด (ESP32 อาจส่งมาไม่ครบทุก field) ให้รูปแบบเหมือนข้อมูลจาก DB
+        for (const [key, value] of Object.entries(data)) {
+            if (typeof value === 'boolean') {
+                currentData[key] = value ? 't' : 'f';
+            } else if (DECIMAL_FIELDS.includes(key) && !isNaN(value)) {
+                currentData[key] = Number(value).toFixed(2);
+            } else {
+                currentData[key] = value;
+            }
+        }
+
+        logs.push({ ...currentData, created_at: new Date() });
+        updateLiveInterval();
+        pruneLogs();
+        scheduleRender();
+    }
+
+    function onMqttStatus(message) {
+        const status = message.trim().toLowerCase();
+        if (status !== 'online' && status !== 'offline') return;
+
+        mqttStatus = status === 'online' ? 't' : 'f';
+        currentData.is_connected = mqttStatus;
+        scheduleRender();
     }
 
     function setinitState() {
@@ -47,6 +222,7 @@
                 }
 
                 console.log("allowKey:", allowKey);
+                scheduleRender();
             });
         });
     }
@@ -54,7 +230,7 @@
 
     async function loadDataById(id) {
         try {
-            const res = await fetch('../api/fetch-setsById.php?id=' + id);
+            const res = await fetch(`../api/fetch-setsById.php?id=${id}&limit=${HISTORY_LIMIT}`);
             const raw = await res.json();
             const data = raw.data ?? [];
 
@@ -300,6 +476,16 @@
 
         btn.disabled = true;
 
+        // 1) ส่งคำสั่งผ่าน MQTT ก่อน (ESP32 ที่ใช้ MQTT ได้รับทันที ไม่ขึ้นกับ API)
+        let sentMqtt = false;
+        if (mqttClient?.connected) {
+            mqttClient.publish(`pid/esp32/${esp32_id}/cmd`, JSON.stringify({ reset_wifi: true }), { qos: 1 });
+            sentMqtt = true;
+            console.log(`MQTT -> pid/esp32/${esp32_id}/cmd {"reset_wifi":true}`);
+        }
+
+        // 2) บันทึก flag ลง DB (ESP32 ที่ใช้ HTTP อ่าน is_resetwifi จาก DB เหมือนเดิม)
+        let savedDb = false;
         try {
             const res = await fetch(`../api/update-setsById.php?id=${esp32_id}`, {
                 method: "PATCH",
@@ -317,32 +503,50 @@
             }
 
             const raw = await res.json();
+            savedDb = raw.success === true;
 
-            if (!raw.success) {
+            if (!savedDb) {
                 console.error("error => " + raw.message);
-                return;
             }
-
-            console.log("Reset Wifi Success.");
-
-            // ===== Update UI =====
-            if (is_conn) {
-                is_conn.textContent = "Not Connected";
-            } else {
-                console.warn('Not found Element id : is_connect');
-            }
-
-            if (is_status) {
-                is_status.classList.remove("bg-green-500");
-                is_status.classList.add("bg-red-500");
-            } else {
-                console.warn('Not found Element id : is_status');
-            }
-
         } catch (err) {
             console.error("Reset Wifi Error:", err);
-        } finally {
+        }
+
+        // 3) แจ้งผล
+        if (!sentMqtt && !savedDb) {
+            Swal.fire({ icon: 'error', title: 'Reset WiFi failed', text: 'Cannot reach the MQTT broker or the API.' });
             btn.disabled = false;
+            return;
+        }
+
+        if (!sentMqtt) {
+            Swal.fire({ icon: 'warning', title: 'Saved to DB only', text: 'MQTT broker is not connected, so an ESP32 using MQTT will not receive this command.' });
+        } else {
+            Swal.fire({ icon: 'success', title: 'Reset WiFi sent', toast: true, position: 'top-end', timer: 2500, showConfirmButton: false });
+        }
+
+        console.log("Reset Wifi Success.");
+
+        // ถือว่าหลุดจนกว่า ESP32 จะส่ง "online" กลับมา
+        if (mqttStatus) {
+            mqttStatus = 'f';
+        }
+        if (currentData) {
+            currentData.is_connected = 'f';
+        }
+
+        // ===== Update UI =====
+        if (is_conn) {
+            is_conn.textContent = "Not Connected";
+        } else {
+            console.warn('Not found Element id : is_connect');
+        }
+
+        if (is_status) {
+            is_status.classList.remove("bg-green-500");
+            is_status.classList.add("bg-red-500");
+        } else {
+            console.warn('Not found Element id : is_status');
         }
     }
 </script>

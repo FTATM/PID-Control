@@ -16,6 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
 // ================================ Receive Params ======================================
 $id = $_GET['id'] ?? '';
+$limit = (int) ($_GET['limit'] ?? 15);   // จำนวน logs ที่ส่งกลับ (default 15 เหมือนเดิม)
+$limit = max(1, min($limit, 1000));
 
 if (empty($id)) {
     http_response_code(400);
@@ -58,9 +60,9 @@ if (!$row) {
 $sql_logs = "SELECT * FROM esp32_logs 
              WHERE esp32_id = $1 
              ORDER BY id DESC 
-             LIMIT 15";
+             LIMIT $2";
 
-$result_logs = pg_query_params($db, $sql_logs, [$id]);
+$result_logs = pg_query_params($db, $sql_logs, [$id, $limit]);
 
 if ($result_logs) {
     $logs = pg_fetch_all($result_logs);
