@@ -7,7 +7,7 @@ H="${DB_HOST:-db}"
 P="${DB_PORT:-5432}"
 N="${DB_NAME:-pid}"
 U="${DB_USER:-postgres}"
-W="${DB_PASS:-}"
+W="${DB_PASS:-postgres}"   # ค่าเริ่มต้นเดียวกับ service db ใน docker-compose
 
 # configs/config.php อ่านค่าจากไฟล์ .env ด้วย phpdotenv
 # จึงสร้าง .env ภายใน container จาก environment ที่ docker-compose ส่งเข้ามา

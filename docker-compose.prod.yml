@@ -2,22 +2,6 @@
 # ต้องมีแค่ไฟล์นี้ + .env ในโฟลเดอร์เดียวกัน แล้วสั่ง:
 #   docker compose -f docker-compose.prod.yml pull
 #   docker compose -f docker-compose.prod.yml up -d
-# ค่า environment ที่ใช้ร่วมกันระหว่าง web และ mqtt-worker
-x-app-env: &app-env
-  DB_HOST: db            # ชื่อ service ของ database (ไม่ใช่ localhost)
-  DB_PORT: 5432
-  DB_NAME: ${DB_NAME:-pid}
-  DB_USER: ${DB_USER:-postgres}
-  DB_PASS: ${DB_PASS:-postgres}
-  CAMERAS: ${CAMERAS:-}
-  APP_ENV: ${APP_ENV:-production}
-  APP_DEBUG: ${APP_DEBUG:-false}
-  MQTT_HOST: mqtt        # ชื่อ service ของ broker (ใช้จากโค้ด PHP ภายใน Docker)
-  MQTT_PORT: 1883
-  MQTT_WS_PORT: ${MQTT_WS_PORT:-9001}   # port ที่หน้าเว็บ (browser) ใช้ต่อ WebSocket
-  MQTT_USER: ${MQTT_USER:-}
-  MQTT_PASS: ${MQTT_PASS:-}
-
 services:
   web:
     image: ghcr.io/ftatm/pid-control:${IMAGE_TAG:-latest}
@@ -25,7 +9,12 @@ services:
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-8080}:80"
-    environment: *app-env
+    env_file: .env         # ค่าทั้งหมดอ่านจาก .env
+    environment:           # ค่าใน .env เป็นของ XAMPP (localhost) จึงทับเฉพาะค่าที่ต้องใช้ภายใน Docker network
+      DB_HOST: db          # ชื่อ service ของ database
+      DB_PORT: 5432        # port ภายใน Docker network (ห้ามเปลี่ยน)
+      MQTT_HOST: mqtt      # ชื่อ service ของ broker
+      MQTT_PORT: 1883      # port ภายใน Docker network (ห้ามเปลี่ยน, port ฝั่งเครื่องตั้งที่ MQTT_PORT ใน .env)
     depends_on:
       db:
         condition: service_healthy
@@ -39,8 +28,12 @@ services:
     restart: unless-stopped
     init: true             # ให้ docker stop หยุด php ได้ทันที
     command: ["php", "workers/mqtt_worker.php"]
+    env_file: .env         # ค่าทั้งหมดอ่านจาก .env (เหมือน web)
     environment:
-      <<: *app-env
+      DB_HOST: db
+      DB_PORT: 5432
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
       RUN_MIGRATIONS: "false"   # ให้ web เป็นคนรัน migration
     depends_on:
       db:
