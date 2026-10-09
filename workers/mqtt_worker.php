@@ -88,8 +88,14 @@ function getIdFromTopic(string $topic): ?string
     return ctype_digit($id) ? $id : null;
 }
 
-function onState(string $topic, string $message): void
+function onState(string $topic, string $message, bool $retained = false): void
 {
+    // state ต้องไม่ retain: ข้อความเก่าที่ค้างใน broker จะถูกส่งซ้ำทุกครั้งที่ worker เริ่มใหม่และทับค่าจริงใน DB
+    if ($retained) {
+        logLine("skip retained message on $topic: $message");
+        return;
+    }
+
     $id = getIdFromTopic($topic);
     $data = json_decode($message, true);
 

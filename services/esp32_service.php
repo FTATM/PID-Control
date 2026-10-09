@@ -7,7 +7,7 @@ class Esp32ServiceException extends Exception
     // $code = HTTP status code (400, 404, 500)
 }
 
-const ESP32_ALLOWED_FIELDS = ['name', 'sp', 'error', 'kp', 'ki', 'kd', 'pv', 'mv', 'sv', 'multi_kp', 'multi_ki', 'multi_kd', 'is_connected', 'is_resetwifi'];
+const ESP32_ALLOWED_FIELDS = ['name', 'sp', 'error', 'kp', 'ki', 'kd', 'pv', 'mv', 'sv', 'multi_kp', 'multi_ki', 'multi_kd', 'is_connected', 'is_resetwifi', 'relay'];
 
 /**
  * UPDATE esp32_sets ตาม field ที่ส่งมา แล้ว INSERT ลง esp32_logs (ใน transaction เดียวกัน)
@@ -63,8 +63,8 @@ function updateEsp32State($db, $id, array $data): array
 
         // log
         $sql_log = "INSERT INTO esp32_logs
-            (esp32_id,sp,error,kp,ki,kd,pv,mv,sv,multi_kp,multi_ki,multi_kd,is_connected,is_resetwifi,created_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,now());
+            (esp32_id,sp,error,kp,ki,kd,pv,mv,sv,multi_kp,multi_ki,multi_kd,is_connected,is_resetwifi,relay,created_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,now());
         ";
 
         $params_log = [
@@ -81,7 +81,8 @@ function updateEsp32State($db, $id, array $data): array
             $updated['multi_ki'],
             $updated['multi_kd'],
             $updated['is_connected'],
-            $updated['is_resetwifi']
+            $updated['is_resetwifi'],
+            $updated['relay']
         ];
 
         $result_log = pg_query_params($db, $sql_log, $params_log);

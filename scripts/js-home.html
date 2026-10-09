@@ -13,7 +13,7 @@
     const STALE_FACTOR = 3;
     const STALE_MIN_MS = 3000;
     const STALE_MAX_MS = 30000;
-    const DECIMAL_FIELDS = ['sp', 'error', 'kp', 'ki', 'kd', 'pv', 'mv', 'sv'];
+    const DECIMAL_FIELDS = ['sp', 'error', 'kp', 'ki', 'kd', 'pv', 'mv', 'sv', 'relay'];
 
     let currentData = null;   // ค่าล่าสุดของ esp32_sets
     let logs = [];            // ข้อมูลกราฟ
@@ -155,11 +155,16 @@
             console.error('MQTT error: ' + err.message);
         });
 
-        mqttClient.on('message', (topic, payload) => {
+        mqttClient.on('message', (topic, payload, packet) => {
             if (!currentData) return;
 
             const message = payload.toString();
             if (topic === topicState) {
+                // state ต้องไม่ retain: ข้อความเก่าที่ค้างใน broker จะกลายเป็นจุดแรกของกราฟทุกครั้งที่ refresh
+                if (packet?.retain) {
+                    console.warn('MQTT skip retained state: ' + message);
+                    return;
+                }
                 onMqttState(message);
             } else if (topic === topicStatus) {
                 onMqttStatus(message);
@@ -248,7 +253,7 @@
         SetValueInHTMLById('kd', data['kd'] ?? '-');
         SetValueInHTMLById('pv', data['pv'] ?? '-');
         SetValueInHTMLById('mv', data['mv'] ?? '-');
-        SetValueInHTMLById('multi-kp', "x" + data['multi_kp'] ?? '-');
+        SetValueInHTMLById('relay', data['relay'] ?? '-');        SetValueInHTMLById('multi-kp', "x" + data['multi_kp'] ?? '-');
         SetValueInHTMLById('multi-ki', "x" + data['multi_ki'] ?? '-');
         SetValueInHTMLById('multi-kd', "x" + data['multi_kd'] ?? '-');
         // SetValueInHTMLById('sv', data['sv'] ?? '-');
@@ -290,6 +295,7 @@
         const kpData = logs.map(item => parseFloat(item.kp));
         const kiData = logs.map(item => parseFloat(item.ki));
         const kdData = logs.map(item => parseFloat(item.kd));
+        const relayData = logs.map(item => parseFloat(item.relay));
 
 
         let datasets = [];
@@ -369,6 +375,20 @@
                 pointHoverRadius: 0
             });
             allValues.push(...kdData);
+        }
+
+        if (allowKey.includes('relay')) {
+            datasets.push({
+                label: 'Relay',
+                data: relayData,
+                borderColor: '#F59E0B',
+                backgroundColor: '#808080',
+                borderWidth: 3,
+                stepped: true,      // relay เปลี่ยนค่าเป็นขั้น ไม่ควรลากเส้นโค้งระหว่างจุด
+                pointRadius: 0,
+                pointHoverRadius: 0
+            });
+            allValues.push(...relayData);
         }
 
         // รวมข้อมูลทั้งหมดเพื่อหาค่า min / max

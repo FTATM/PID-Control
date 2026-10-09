@@ -33,7 +33,7 @@ $guideTopics = [
     ],
 ];
 
-$guideFields = 'name, sp, error, kp, ki, kd, pv, mv, sv, multi_kp, multi_ki, multi_kd, is_connected, is_resetwifi';
+$guideFields = 'name, sp, error, kp, ki, kd, pv, mv, sv, multi_kp, multi_ki, multi_kd, is_connected, is_resetwifi, relay';
 ?>
 <div id="popup-mqtt-guide" onclick="if (event.target === this) hidePopup('popup-mqtt-guide')"
     class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm hidden">

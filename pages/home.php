@@ -174,6 +174,24 @@ $mqttWebConfig = [
             <div class="arrow-line flex-1"></div>
             <div class="relative w-[2vw] h-[2vw] rounded-full bg-gradient-to-br from-gray-700 via-white to-gray-700 shadow-xl dark:shadow-black/50 border border-gray-400 flex items-center justify-center z-10">
                 <span class="text-[0.75vw] font-bold">Σ</span>
+
+                <!-- ==== RELAY (อยู่บนปลายเส้นแนวตั้งที่ชี้ลงเข้า Σ: เส้นสูง 10vh จากกึ่งกลาง สูงสุด 100px) ==== -->
+                <div class="absolute left-1/2 -translate-x-1/2 bottom-[calc(50%_+_min(10vh,100px))] z-10">
+                    <div
+                        class="w-[8vw] boxx bg-amber-50 dark:bg-amber-950 border-2 border-amber-200 dark:border-amber-900 rounded-2xl p-4 shadow-xl dark:shadow-black/50">
+                        <div class="flex items-center justify-between mb-2">
+                            <span
+                                class="text-[10px] font-bold text-amber-500 dark:text-white-400 uppercase tracking-tight">Relay</span>
+                            <span class="material-icons-outlined text-amber-400 text-sm">electrical_services</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <div id="relay" class="text-3xl font-mono font-bold text-stone-600 dark:text-white">0.00</div>
+                            <div class="flex flex-col gap-2 items-end justify-end">
+                                <input value="relay" type="checkbox" class="allow-checkbox z-10 bg-gray-400" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="absolute right-[1vw] flex flex-col justify-between">
                     <div class="w-[14.856vw] h-[10vh] max-h-[100px] flex items-center">
                         <div class="horizontal-line flex-1"></div>

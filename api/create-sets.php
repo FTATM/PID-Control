@@ -45,7 +45,8 @@ $allowedFields = [
     'multi_ki',
     'multi_kd',
     'is_connected',
-    'is_resetwifi'
+    'is_resetwifi',
+    'relay'
 ];
 
 $columns = [];
