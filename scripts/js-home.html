@@ -6,8 +6,10 @@
     let allowKey = ['sp', 'pv'];
 
     // ===================== Realtime config =====================
-    const CHART_WINDOW_MS = 30 * 1000;  // กราฟแสดงย้อนหลัง 30 วินาที
-    const HISTORY_LIMIT = 300;          // จำนวน logs ที่โหลดจาก DB (พอสำหรับ 10 ครั้ง/วินาที x 30 วินาที)
+    // ช่วงเวลาของกราฟ เลือกได้จาก dropdown #chart-window (วินาที) จำค่าไว้ใน localStorage
+    const CHART_WINDOW_KEY = 'pid-chart-window';
+    let chartWindowMs = 30 * 1000;
+    const HISTORY_LIMIT = 600;          // จำนวนจุดสูงสุดบนกราฟ (ช่วงยาว server จะเลือกทุกๆ N แถว)
     // ไม่มีข้อความ MQTT เกิน 3 เท่าของรอบส่งของ ESP32 -> กลับไป polling จาก DB
     // (ต่ำสุด 3 วินาที สูงสุด 30 วินาที เพื่อไม่ให้สถานะกระพริบเมื่อ ESP32 ส่งช้า)
     const STALE_FACTOR = 3;
@@ -17,6 +19,7 @@
 
     let currentData = null;   // ค่าล่าสุดของ esp32_sets
     let logs = [];            // ข้อมูลกราฟ
+    let resetAfterMs = 0;     // กด Reset แล้ว: ไม่แสดง logs ที่เก่ากว่าเวลานี้ (refresh หน้า = แสดงทั้งหมดอีกครั้ง)
     let mqttClient = null;
     let lastLiveAt = 0;       // เวลาที่ได้รับข้อความ MQTT ล่าสุด
     let liveIntervalMs = 0;   // ระยะห่างเฉลี่ยระหว่างข้อความ MQTT (รอบส่งของ ESP32)
@@ -24,6 +27,7 @@
     let renderPending = false;
 
     document.addEventListener('DOMContentLoaded', async () => {
+        setChartWindowSelect();
         await process();
         setinitState();
         setTimeInterval(1000);
@@ -73,20 +77,63 @@
             setValueInHTML(currentData);
             if (logs.length > 0) {
                 initChart('chart', prepareDatasets({ logs }));
+            } else if (chart) {
+                chart.data.labels = [];
+                chart.data.datasets = [];
+                chart.update('none');
             }
         });
+    }
+
+    // ล้างเส้นบนกราฟ (ไม่ลบ logs ใน DB) เริ่มวาดใหม่จากข้อมูลที่เข้ามาหลังกดปุ่ม
+    // ใช้เวลาของ log ล่าสุดเป็นจุดตัด แทนเวลาของ browser เผื่อนาฬิกาไม่ตรงกับ server
+    function resetLogs() {
+        if (logs.length > 0) {
+            resetAfterMs = Math.max(...logs.map(item => toTime(item.created_at)));
+        }
+        logs = [];
+        scheduleRender();
     }
 
     function toTime(value) {
         return value instanceof Date ? value.getTime() : new Date(String(value).replace(' ', 'T')).getTime();
     }
 
-    // เก็บเฉพาะข้อมูลในช่วง CHART_WINDOW_MS ล่าสุด
+    // เก็บเฉพาะข้อมูลในช่วง chartWindowMs ล่าสุด และใหม่กว่าตอนกด Reset
     function pruneLogs() {
         if (logs.length === 0) return;
 
         const newest = Math.max(...logs.map(item => toTime(item.created_at)));
-        logs = logs.filter(item => toTime(item.created_at) >= newest - CHART_WINDOW_MS);
+        logs = logs.filter(item => {
+            const time = toTime(item.created_at);
+            return time >= newest - chartWindowMs && time > resetAfterMs;
+        });
+    }
+
+    function setChartWindowSelect() {
+        const select = document.getElementById('chart-window');
+        if (!select) return;
+
+        try {
+            const saved = localStorage.getItem(CHART_WINDOW_KEY);
+            if (saved && select.querySelector(`option[value="${saved}"]`)) {
+                select.value = saved;
+            }
+        } catch (err) { }
+        chartWindowMs = Number(select.value) * 1000;
+
+        select.addEventListener('change', () => {
+            chartWindowMs = Number(select.value) * 1000;
+            try { localStorage.setItem(CHART_WINDOW_KEY, select.value); } catch (err) { }
+            process();   // โหลดประวัติช่วงใหม่จาก DB ทันที
+        });
+    }
+
+    // หน่วยแกน X ตามช่วงเวลาที่เลือก
+    function getTimeScale() {
+        if (chartWindowMs <= 60 * 1000) return { unit: 'second', format: 'ss' };
+        if (chartWindowMs <= 3600 * 1000) return { unit: 'minute', format: 'HH:mm' };
+        return { unit: 'hour', format: 'HH:mm' };
     }
 
     // ===================== MQTT (realtime) =====================
@@ -193,7 +240,12 @@
             }
         }
 
-        logs.push({ ...currentData, created_at: new Date() });
+        // ช่วงยาวไม่ต้องเก็บทุกข้อความ ให้จำนวนจุดใกล้เคียง HISTORY_LIMIT เหมือนข้อมูลจาก DB
+        const now = new Date();
+        const lastAt = logs.length ? toTime(logs[logs.length - 1].created_at) : 0;
+        if (now.getTime() - lastAt >= chartWindowMs / HISTORY_LIMIT) {
+            logs.push({ ...currentData, created_at: now });
+        }
         updateLiveInterval();
         pruneLogs();
         scheduleRender();
@@ -235,7 +287,7 @@
 
     async function loadDataById(id) {
         try {
-            const res = await fetch(`../api/fetch-setsById.php?id=${id}&limit=${HISTORY_LIMIT}`);
+            const res = await fetch(`../api/fetch-setsById.php?id=${id}&limit=${HISTORY_LIMIT}&window=${chartWindowMs / 1000}`);
             const raw = await res.json();
             const data = raw.data ?? [];
 
@@ -413,6 +465,7 @@
         const yMax = chartData.max + chartData.max * 0.5;
 
         const axisColor = isDarkMode() ? '#FFFFFF' : '#6B7280';
+        const timeScale = getTimeScale();
 
         if (!chart) {
             chart = new Chart(ctx, {
@@ -434,9 +487,9 @@
                         x: {
                             type: 'time',
                             time: {
-                                unit: 'second',
+                                unit: timeScale.unit,
                                 displayFormats: {
-                                    second: 'ss'
+                                    [timeScale.unit]: timeScale.format
                                 },
                                 tooltipFormat: 'HH:mm:ss.SSS'
                             },
@@ -469,6 +522,8 @@
 
             // chart.options.scales.y.min = yMin;
             chart.options.scales.y.max = yMax;
+            chart.options.scales.x.time.unit = timeScale.unit;
+            chart.options.scales.x.time.displayFormats = { [timeScale.unit]: timeScale.format };
 
             // 👇 update color ตอน update
             chart.options.scales.x.ticks.color = axisColor;

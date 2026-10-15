@@ -153,7 +153,27 @@ $mqttWebConfig = [
                 </div>
                 <div
                     class="w-[30vw] flex flex-col bg-white boxx dark:bg-white/5 border-2 border-slate-200 dark:border-white/20 p-[0.5vw] rounded-2xl shadow-xl dark:shadow-black/50">
-                    <div class="p-[0.25vw] dark:text-white">Graph</div>
+                    <div class="p-[0.25vw] flex items-center justify-between dark:text-white">
+                        <span>Graph</span>
+                        <div class="flex items-center gap-2">
+                        <button id="btn-resetlogs" onclick="resetLogs()" title="Clear lines in graph (logs in database are kept)"
+                            class="text-xs py-0.5 px-2 rounded-lg border border-slate-200 dark:border-white/20 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 dark:text-white flex items-center gap-1 transition-colors">
+                            <span class="material-icons-outlined text-sm">restart_alt</span>
+                            Reset
+                        </button>
+                        <select id="chart-window"
+                            class="text-xs py-0.5 pl-2 pr-7 rounded-lg border border-slate-200 dark:border-white/20 bg-white dark:bg-slate-800 dark:text-white">
+                            <option value="30">30 sec</option>
+                            <option value="60">1 min</option>
+                            <option value="300">5 min</option>
+                            <option value="900">15 min</option>
+                            <option value="1800">30 min</option>
+                            <option value="3600">1 hour</option>
+                            <option value="21600">6 hours</option>
+                            <option value="86400">24 hours</option>
+                        </select>
+                        </div>
+                    </div>
                     <div class="flex-1">
                         <canvas id="chart"></canvas>
                     </div>
