@@ -17,6 +17,7 @@ $currentTime = date('H:i:s');
             </h1>
             <p class="text-[0.75vw] text-stone-500 dark:text-stone-400 font-medium uppercase tracking-wider mt-0.5"><?php echo isset($subTitle) ? $subTitle : "---" ?></p>
         </div>
+        <?php echo $headerExtra ?? ''; ?>
     </div>
     <div class="flex items-center gap-4">
         <div id="theme-toggle-container" onclick="document.documentElement.classList.toggle('dark')">

@@ -32,7 +32,7 @@ if (empty($id)) {
 }
 
 // ===================================== Query Main ======================================
-$sql = "SELECT * FROM esp32_sets WHERE id = $1 LIMIT 1;";
+$sql = "SELECT * FROM esp32_sets WHERE device_id = $1 LIMIT 1;";
 $result = pg_query_params($db, $sql, [$id]);
 
 if (!$result) {
@@ -59,6 +59,8 @@ if (!$row) {
 }
 
 // ===================================== Query Logs ======================================
+// logs อ้างถึง id ภายใน ($id ที่รับมาคือ device_id)
+$id = $row['id'];
 if ($window > 0) {
     // logs ย้อนหลัง $window วินาทีนับจาก log ล่าสุด
     // ถ้าเกิน $limit แถว เลือกทุกๆ N แถว เพื่อให้กราฟช่วงยาวไม่หนักเกินไป

@@ -26,7 +26,172 @@
     let mqttStatus = null;    // 't' / 'f' จาก topic status (ใหม่กว่าค่าใน DB เสมอ)
     let renderPending = false;
 
+    // ===================== Export CSV / Excel =====================
+    const EXPORT_COLUMNS = [
+        ['created_at', 'Time'], ['sp', 'SP'], ['pv', 'PV'], ['error', 'Error'],
+        ['kp', 'Kp'], ['ki', 'Ki'], ['kd', 'Kd'], ['mv', 'MV'], ['sv', 'SV'], ['relay', 'Relay'],
+        ['multi_kp', 'Multi Kp'], ['multi_ki', 'Multi Ki'], ['multi_kd', 'Multi Kd'], ['is_connected', 'Connected']
+    ];
+
+    async function exportLogs(format) {
+        const pad = n => String(n).padStart(2, '0');
+        const nowLocal = () => {
+            const d = new Date();
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+
+        const { isConfirmed, value } = await Swal.fire({
+            title: format === 'csv' ? 'Export CSV' : 'Export Excel',
+            html: `
+                <div style="text-align:left;font-size:14px">
+                    <label>ช่วงเวลา</label>
+                    <select id="exp-range" class="swal2-select" style="width:100%;margin:6px 0 12px">
+                        <option value="1">1 ชั่วโมงล่าสุด</option>
+                        <option value="24" selected>24 ชั่วโมงล่าสุด</option>
+                        <option value="168">7 วันล่าสุด</option>
+                        <option value="720">30 วันล่าสุด</option>
+                        <option value="custom">กำหนดเอง</option>
+                    </select>
+                    <div id="exp-custom" style="display:none">
+                        <label>จาก</label><input id="exp-from" type="datetime-local" class="swal2-input" style="width:100%;margin:6px 0 12px">
+                        <label>ถึง</label><input id="exp-to" type="datetime-local" class="swal2-input" style="width:100%;margin:6px 0 0">
+                    </div>
+                </div>`,
+            showCancelButton: true,
+            confirmButtonText: 'Download',
+            cancelButtonText: 'ยกเลิก',
+            didOpen: () => {
+                document.getElementById('exp-to').value = nowLocal();
+                document.getElementById('exp-range').addEventListener('change', e => {
+                    document.getElementById('exp-custom').style.display = e.target.value === 'custom' ? 'block' : 'none';
+                });
+            },
+            preConfirm: () => {
+                const range = document.getElementById('exp-range').value;
+                if (range !== 'custom') return { hours: range };
+                const from = document.getElementById('exp-from').value;
+                const to = document.getElementById('exp-to').value;
+                if (!from) {
+                    Swal.showValidationMessage('กรุณาเลือกเวลาเริ่มต้น');
+                    return false;
+                }
+                return { from, to };
+            }
+        });
+        if (!isConfirmed) return;
+
+        Swal.fire({ title: 'กำลังเตรียมข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        try {
+            const qs = new URLSearchParams({ id: esp32_id, ...value });
+            const res = await fetch(`../api/export-logs.php?${qs}`);
+            const raw = await res.json();
+            if (!raw.success) throw new Error(raw.message || 'export failed');
+
+            if (raw.data.length === 0) {
+                Swal.fire({ icon: 'info', title: 'ไม่มีข้อมูลในช่วงเวลานี้' });
+                return;
+            }
+
+            const header = EXPORT_COLUMNS.map(c => c[1]);
+            const table = raw.data.map(r => EXPORT_COLUMNS.map(([key]) => {
+                const v = r[key];
+                if (key === 'created_at') return String(v).substring(0, 19);
+                if (key === 'is_connected') return (v === 't' || v === true) ? 1 : 0;
+                return v === null || v === '' ? '' : Number(v);
+            }));
+
+            const stamp = new Date().toISOString().substring(0, 19).replace(/[T:]/g, '-');
+            const base = `pid_${raw.device.device_id}_${stamp}`;
+
+            if (format === 'csv') {
+                const esc = v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v;
+                const csv = [header, ...table].map(row => row.map(esc).join(',')).join('\r\n');
+                // BOM ให้ Excel อ่านภาษาไทยถูกต้อง
+                downloadBlob(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }), `${base}.csv`);
+            } else {
+                if (typeof XLSX === 'undefined') throw new Error('โหลด library Excel ไม่สำเร็จ');
+                const ws = XLSX.utils.aoa_to_sheet([header, ...table]);
+                ws['!cols'] = header.map((h, i) => ({ wch: i === 0 ? 20 : 11 }));
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, String(raw.device.device_id).substring(0, 31));
+                XLSX.writeFile(wb, `${base}.xlsx`);
+            }
+
+            if (raw.truncated) {
+                Swal.fire({ icon: 'warning', title: 'ข้อมูลถูกตัด', text: `มีข้อมูลมากกว่า ${raw.max_rows.toLocaleString()} แถว ไฟล์นี้มีเฉพาะส่วนแรก ลองเลือกช่วงเวลาที่สั้นลง` });
+            } else {
+                Swal.fire({ icon: 'success', title: `ดาวน์โหลดแล้ว (${table.length.toLocaleString()} แถว)`, toast: true, position: 'top-end', timer: 2500, showConfirmButton: false });
+            }
+        } catch (err) {
+            console.error('Export error:', err);
+            Swal.fire({ icon: 'error', title: 'Export ไม่สำเร็จ', text: err.message });
+        }
+    }
+
+    function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // ===================== Device switcher =====================
+    let deviceList = [];
+
+    function escHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    async function loadDeviceList() {
+        try {
+            const res = await fetch('../api/fetch-sets.php');
+            const raw = await res.json();
+            deviceList = raw.data ?? [];
+        } catch (err) {
+            console.error('error : ' + err);
+        }
+        renderDeviceSwitcher();
+    }
+
+    function renderDeviceSwitcher() {
+        const cur = deviceList.find(d => d.device_id === String(esp32_id));
+        document.getElementById('device-current').textContent =
+            cur ? `${cur.name} (${cur.device_id})` : String(esp32_id);
+
+        const multi = deviceList.length > 1;
+        document.getElementById('device-caret').classList.toggle('hidden', !multi);
+        document.getElementById('device-switch-btn').classList.toggle('cursor-default', !multi);
+
+        document.getElementById('device-menu').innerHTML = deviceList.map(d => {
+            const active = d.device_id === String(esp32_id);
+            const on = d.is_connected === 't' || d.is_connected === true;
+            return `<a href="?id=${encodeURIComponent(d.device_id)}"
+                class="flex items-center gap-2 px-3 py-2 text-sm dark:text-white hover:bg-stone-100 dark:hover:bg-slate-800 ${active ? 'font-bold bg-orange-50 dark:bg-slate-800' : ''}">
+                <span class="w-2 h-2 rounded-full ${on ? 'bg-green-500' : 'bg-red-500'}"></span>
+                <span class="flex-1">${escHtml(d.name)}</span>
+                <span class="font-mono text-xs text-stone-400">${escHtml(d.device_id)}</span>
+            </a>`;
+        }).join('');
+    }
+
+    function toggleDeviceMenu() {
+        if (deviceList.length <= 1) return;
+        document.getElementById('device-menu').classList.toggle('hidden');
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#device-switch-btn') && !e.target.closest('#device-menu')) {
+            document.getElementById('device-menu')?.classList.add('hidden');
+        }
+    });
+
     document.addEventListener('DOMContentLoaded', async () => {
+        loadDeviceList();
         setChartWindowSelect();
         await process();
         setinitState();
@@ -310,15 +475,9 @@
         SetValueInHTMLById('multi-kd', "x" + data['multi_kd'] ?? '-');
         // SetValueInHTMLById('sv', data['sv'] ?? '-');
 
-        const btn = document.getElementById('btn-resetwifi');
         const is_conn = document.getElementById('is_connect');
         const is_status = document.getElementById('is_status');
         // ===== Update UI =====
-        if (btn) {
-            btn.disabled = data['is_connected'] == 't' ? false : true;
-        } else {
-            console.warn('Not found Element id : btn-resetwifi');
-        }
         if (is_conn) {
             is_conn.textContent = data['is_connected'] == 't' ? "Connected" : "Not Connected";
         } else {
@@ -537,91 +696,4 @@
         }
     }
 
-    async function resetWifi() {
-        console.log("========================= resetwifi =====================");
-
-        const btn = document.getElementById('btn-resetwifi');
-        const is_conn = document.getElementById('is_connect');
-        const is_status = document.getElementById('is_status');
-
-        if (!btn) {
-            console.warn("Not found Element id : btn-resetwifi");
-            return;
-        }
-
-        btn.disabled = true;
-
-        // 1) ส่งคำสั่งผ่าน MQTT ก่อน (ESP32 ที่ใช้ MQTT ได้รับทันที ไม่ขึ้นกับ API)
-        let sentMqtt = false;
-        if (mqttClient?.connected) {
-            mqttClient.publish(`pid/esp32/${esp32_id}/cmd`, JSON.stringify({ reset_wifi: true }), { qos: 1 });
-            sentMqtt = true;
-            console.log(`MQTT -> pid/esp32/${esp32_id}/cmd {"reset_wifi":true}`);
-        }
-
-        // 2) บันทึก flag ลง DB (ESP32 ที่ใช้ HTTP อ่าน is_resetwifi จาก DB เหมือนเดิม)
-        let savedDb = false;
-        try {
-            const res = await fetch(`../api/update-setsById.php?id=${esp32_id}`, {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    "is_connected": "f",
-                    "is_resetwifi": "t"
-                })
-            });
-
-            if (!res.ok) {
-                throw new Error(`HTTP Error ${res.status}`);
-            }
-
-            const raw = await res.json();
-            savedDb = raw.success === true;
-
-            if (!savedDb) {
-                console.error("error => " + raw.message);
-            }
-        } catch (err) {
-            console.error("Reset Wifi Error:", err);
-        }
-
-        // 3) แจ้งผล
-        if (!sentMqtt && !savedDb) {
-            Swal.fire({ icon: 'error', title: 'Reset WiFi failed', text: 'Cannot reach the MQTT broker or the API.' });
-            btn.disabled = false;
-            return;
-        }
-
-        if (!sentMqtt) {
-            Swal.fire({ icon: 'warning', title: 'Saved to DB only', text: 'MQTT broker is not connected, so an ESP32 using MQTT will not receive this command.' });
-        } else {
-            Swal.fire({ icon: 'success', title: 'Reset WiFi sent', toast: true, position: 'top-end', timer: 2500, showConfirmButton: false });
-        }
-
-        console.log("Reset Wifi Success.");
-
-        // ถือว่าหลุดจนกว่า ESP32 จะส่ง "online" กลับมา
-        if (mqttStatus) {
-            mqttStatus = 'f';
-        }
-        if (currentData) {
-            currentData.is_connected = 'f';
-        }
-
-        // ===== Update UI =====
-        if (is_conn) {
-            is_conn.textContent = "Not Connected";
-        } else {
-            console.warn('Not found Element id : is_connect');
-        }
-
-        if (is_status) {
-            is_status.classList.remove("bg-green-500");
-            is_status.classList.add("bg-red-500");
-        } else {
-            console.warn('Not found Element id : is_status');
-        }
-    }
 </script>

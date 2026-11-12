@@ -10,12 +10,13 @@ class Esp32ServiceException extends Exception
 const ESP32_ALLOWED_FIELDS = ['name', 'sp', 'error', 'kp', 'ki', 'kd', 'pv', 'mv', 'sv', 'multi_kp', 'multi_ki', 'multi_kd', 'is_connected', 'is_resetwifi', 'relay'];
 
 /**
+ * $deviceId = คอลัมน์ device_id (ไม่ใช่ id ภายใน)
  * UPDATE esp32_sets ตาม field ที่ส่งมา แล้ว INSERT ลง esp32_logs (ใน transaction เดียวกัน)
  * คืนค่า row ล่าสุดของ esp32_sets
  *
  * @throws Esp32ServiceException
  */
-function updateEsp32State($db, $id, array $data): array
+function updateEsp32State($db, $deviceId, array $data): array
 {
     $setParts = [];
     $params = [];
@@ -38,11 +39,11 @@ function updateEsp32State($db, $id, array $data): array
     }
 
     // append id
-    $params[] = $id;
+    $params[] = (string) $deviceId;
 
     $sql = "UPDATE esp32_sets
         SET " . implode(", ", $setParts) . "
-        WHERE id = $" . $index . "
+        WHERE device_id = $" . $index . "
         RETURNING *;
     ";
 

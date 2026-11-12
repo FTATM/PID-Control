@@ -32,6 +32,7 @@ if (!$data) {
 
 // ================= Allowed Fields =================
 $allowedFields = [
+    'device_id',
     'name',
     'sp',
     'error',
@@ -48,6 +49,17 @@ $allowedFields = [
     'is_resetwifi',
     'relay'
 ];
+
+// device_id ต้องกรอก, ใช้ได้เฉพาะ a-z A-Z 0-9 _ - (ใช้เป็นส่วนหนึ่งของ MQTT topic) และห้ามซ้ำ
+$data['device_id'] = trim((string) ($data['device_id'] ?? ''));
+if (!preg_match('/^[A-Za-z0-9_-]{1,64}$/', $data['device_id'])) {
+    http_response_code(400);
+    echo json_encode([
+        "success" => false,
+        "message" => "device_id is required (1-64 chars: A-Z a-z 0-9 _ -)"
+    ]);
+    exit;
+}
 
 $columns = [];
 $placeholders = [];
@@ -81,6 +93,15 @@ $sql = "
 $result = pg_query_params($db, $sql, $params);
 
 if (!$result) {
+    if (strpos((string) pg_last_error($db), 'esp32_sets_device_id_key') !== false) {
+        http_response_code(409);
+        echo json_encode([
+            "success" => false,
+            "message" => "device_id already exists"
+        ]);
+        pg_close($db);
+        exit;
+    }
     http_response_code(500);
     echo json_encode([
         "success" => false,

@@ -31,10 +31,15 @@ if (empty($id)) {
 }
 
 // ================= Delete SQL =================
-$sql = "DELETE FROM esp32_sets WHERE id = $1 RETURNING *;";
+// ลบ logs ของอุปกรณ์นี้ด้วย เพื่อไม่ให้มี logs ค้างโดยไม่มีเจ้าของ
+pg_query($db, "BEGIN");
+pg_query_params($db, "DELETE FROM esp32_logs WHERE esp32_id = (SELECT id FROM esp32_sets WHERE device_id = $1);", [$id]);
+
+$sql = "DELETE FROM esp32_sets WHERE device_id = $1 RETURNING *;";
 $params = [$id];
 
 $result = pg_query_params($db, $sql, $params);
+pg_query($db, $result && pg_num_rows($result) > 0 ? "COMMIT" : "ROLLBACK");
 
 if (!$result) {
     http_response_code(500);

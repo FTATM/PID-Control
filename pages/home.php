@@ -11,6 +11,22 @@ $mqttWebConfig = [
     'user' => $_ENV['MQTT_USER'] ?? '',
     'pass' => $_ENV['MQTT_PASS'] ?? '',
 ];
+
+// ตัวเลือกอุปกรณ์ในส่วนหัว: แสดงอุปกรณ์ที่กำลังดู + รายการให้สลับ (ถ้ามีมากกว่า 1 ตัว) เติมโดย js-home.html
+$headerExtra = <<<'HTML'
+<div class="relative ml-4 pl-4 border-l border-stone-200 dark:border-slate-700">
+    <button id="device-switch-btn" type="button" onclick="toggleDeviceMenu()"
+        class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-slate-800 text-stone-700 dark:text-white">
+        <span class="material-icons-outlined text-base text-primary">memory</span>
+        <span class="flex flex-col items-start leading-tight">
+            <span class="text-[10px] uppercase tracking-wider text-stone-400">กำลังดู</span>
+            <span id="device-current" class="text-sm font-bold">-</span>
+        </span>
+        <span id="device-caret" class="material-icons-outlined text-base hidden">expand_more</span>
+    </button>
+    <div id="device-menu" class="hidden absolute left-4 top-full mt-1 z-50 min-w-[14rem] max-h-72 overflow-y-auto rounded-lg border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl"></div>
+</div>
+HTML;
 ?>
 
 <!DOCTYPE html>
@@ -281,25 +297,25 @@ $mqttWebConfig = [
                         <span class="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-white"></span>
                     </div>
                 </div>
-                <button id="btn-resetwifi" onclick="resetWifi()"
-                    class="export-btn w-full py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-[0.75vw] dark:text-white font-bold uppercase flex items-center justify-center gap-2 transition-colors">
-                    <span class="material-icons-outlined text-sm dark:text-white">wifi_off</span>
-                    Reset Wifi ESP32
-                </button>
             </div>
         </div>
         <div class="absolute bottom-6 right-6 flex flex-col gap-3">
+            <a href="devices.php" class="export-btn">
+                <span class="material-icons-outlined text-purple-400 text-lg">devices</span>
+                <span class="export-btn__label">Devices</span>
+            </a>
+
             <button class="export-btn" onclick="showPopup('popup-mqtt-guide')">
                 <span class="material-icons-outlined text-orange-400 text-lg">hub</span>
                 <span class="export-btn__label">MQTT Guide</span>
             </button>
 
-            <button class="export-btn">
+            <button class="export-btn" onclick="exportLogs('csv')">
                 <span class="material-icons-outlined text-blue-400 text-lg">description</span>
                 <span class="export-btn__label">CSV Report</span>
             </button>
 
-            <button class="export-btn">
+            <button class="export-btn" onclick="exportLogs('xlsx')">
                 <span class="material-icons-outlined text-green-400 text-lg">grid_on</span>
                 <span class="export-btn__label">Excel Data</span>
             </button>
@@ -310,6 +326,7 @@ $mqttWebConfig = [
     <?php include "../components/footer.php"; ?>
     <?php include "../scripts/js.html"; ?>
     <script src="https://cdn.jsdelivr.net/npm/mqtt@5/dist/mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script>const MQTT_CONFIG = <?php echo json_encode($mqttWebConfig); ?>;</script>
     <?php include "../scripts/js-home.html"; ?>
 

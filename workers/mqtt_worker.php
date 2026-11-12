@@ -85,7 +85,7 @@ function getIdFromTopic(string $topic): ?string
     $parts = explode('/', $topic);
     $id = $parts[2] ?? '';
 
-    return ctype_digit($id) ? $id : null;
+    return preg_match('/^[A-Za-z0-9_-]{1,64}$/', $id) ? $id : null;
 }
 
 function onState(string $topic, string $message, bool $retained = false): void
